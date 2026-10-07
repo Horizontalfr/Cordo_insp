@@ -334,14 +334,19 @@ function setCfg(c){localStorage.setItem(CFG,JSON.stringify(c));}
 function seed(){
   return {spots:[], settings:{name:"Places",categories:DEFAULT_CATS.map(c=>({...c})),trips:[],theme:"auto"}};
 }
-function load(){
-  try{const r=localStorage.getItem(CACHE);state=r?JSON.parse(r):seed();}catch(e){state=seed();}
+function normalize(){
+  state=state||seed();
+  state.spots=Array.isArray(state.spots)?state.spots:[];
   const s=state.settings=state.settings||{};
   s.name=s.name||"Places";
   s.categories=(s.categories&&s.categories.length)?s.categories:DEFAULT_CATS.map(c=>({...c}));
   s.trips=s.trips||[];
   s.theme=s.theme||"auto";
-  (state.spots||[]).forEach(p=>{p.links=p.links||[];p.rating=p.rating||0;});
+  state.spots.forEach(p=>{p.links=p.links||[];p.rating=p.rating||0;});
+}
+function load(){
+  try{const r=localStorage.getItem(CACHE);state=r?JSON.parse(r):seed();}catch(e){state=seed();}
+  normalize();
 }
 let saveT=null,pushT=null;
 function save(){
@@ -813,7 +818,7 @@ function bindSettings(){
   // data
   document.getElementById("s-export").onclick=()=>{const blob=new Blob([JSON.stringify(state)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="places-backup.json";a.click();};
   document.getElementById("s-import").onclick=()=>document.getElementById("s-importfile").click();
-  document.getElementById("s-importfile").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{state=JSON.parse(r.result);load();save();applyTheme();renderAll();toast("Imported");}catch(err){toast("Could not read that file");}};r.readAsText(f);};
+  document.getElementById("s-importfile").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d||!Array.isArray(d.spots))throw new Error("bad");state=d;normalize();save();applyTheme();renderAll();toast("Imported "+state.spots.length+" places");}catch(err){toast("Could not read that file");}};r.readAsText(f);e.target.value="";};
   document.getElementById("s-reset").onclick=()=>{if(confirm("Erase everything on this device?")){state=seed();save();applyTheme();renderAll();toast("Reset");}};
 }
 function openChecklist(tid){
